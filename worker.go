@@ -3,12 +3,12 @@ package main
 import "fmt"
 
 type Worker struct {
-	queue *Queue
+	queue   *Queue
+	process func(Job) error
 }
 
-func NewWorker(queue *Queue) *Worker {
-	w := &Worker{queue: queue}
-	return w
+func NewWorker(queue *Queue, process func(Job) error) *Worker {
+	return &Worker{queue: queue, process: process}
 }
 
 func (w *Worker) Start() {
@@ -16,9 +16,16 @@ func (w *Worker) Start() {
 		job, ok := w.queue.Dequeue()
 
 		if !ok {
-
+			return
 		}
 
-		fmt.Printf("%d", job.ID)
+		err := w.process(job)
+
+		if err != nil {
+			fmt.Printf("job %d failed: %v\n", job.ID, err)
+			continue
+		}
+
+		fmt.Printf("job %d succeeded\n", job.ID)
 	}
 }

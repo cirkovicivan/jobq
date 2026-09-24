@@ -3,9 +3,10 @@ package main
 import "sync"
 
 type Queue struct {
-	mu   *sync.Mutex
-	jobs []Job
-	cond *sync.Cond
+	mu     *sync.Mutex
+	jobs   []Job
+	cond   *sync.Cond
+	closed bool
 }
 
 func NewQueue() *Queue {
@@ -27,12 +28,24 @@ func (q *Queue) Dequeue() (Job, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	for len(q.jobs) == 0 {
+	for len(q.jobs) == 0 && !q.closed {
 		q.cond.Wait()
+	}
+
+	if len(q.jobs) == 0 && q.closed {
+		return Job{}, false
 	}
 
 	job := q.jobs[0]
 	q.jobs = q.jobs[1:]
 
 	return job, true
+}
+
+func (q *Queue) Close() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	q.closed = true
+	q.cond.Broadcast()
 }
