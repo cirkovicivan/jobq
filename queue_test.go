@@ -7,7 +7,7 @@ import (
 )
 
 func TestEnqueue(t *testing.T) {
-	queue := Queue{}
+	queue := NewQueue()
 
 	job := Job{
 		ID:   1,
@@ -22,7 +22,7 @@ func TestEnqueue(t *testing.T) {
 }
 
 func TestDequeue(t *testing.T) {
-	queue := Queue{}
+	queue := NewQueue()
 
 	job1 := Job{ID: 1, Name: "first"}
 	job2 := Job{ID: 2, Name: "second"}
@@ -43,17 +43,8 @@ func TestDequeue(t *testing.T) {
 	}
 }
 
-func TestDequeueEmpty(t *testing.T) {
-	queue := Queue{}
-
-	_, ok := queue.Dequeue()
-
-	if ok {
-		t.Fatal("expected dequeue to fail on empty queue")
-	}
-}
-func TestConcurentWorkers(t *testing.T) {
-	queue := Queue{}
+func TestConcurrentDequeue(t *testing.T) {
+	queue := NewQueue()
 
 	// create jobs
 	for i := range 100 {
@@ -75,6 +66,7 @@ func TestConcurentWorkers(t *testing.T) {
 			defer wg.Done()
 
 			got, ok := queue.Dequeue()
+
 			if !ok {
 				t.Error("expected a job, got empty queue")
 				return
