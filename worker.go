@@ -16,6 +16,7 @@ func (w *Worker) Start() {
 		job, ok := w.queue.Dequeue()
 
 		if !ok {
+			// Shutdown worker
 			return
 		}
 
