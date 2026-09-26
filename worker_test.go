@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 )
 
@@ -19,6 +21,7 @@ func TestWorkerProcessJob(t *testing.T) {
 		return nil
 	})
 
+	q.Close()
 	w.Start()
 
 	if processedJobID != 1 {
@@ -44,6 +47,7 @@ func TestWorkerProcessesMultipleJobs(t *testing.T) {
 		return nil
 	})
 
+	q.Close()
 	w.Start()
 
 	for i := 0; i < len(processedJobIDs); i++ {
@@ -75,6 +79,7 @@ func TestWorkerContinuesAfterError(t *testing.T) {
 		return nil
 	})
 
+	q.Close()
 	w.Start()
 
 	for i := 0; i < len(attemptedJobIDs); i++ {
@@ -86,7 +91,6 @@ func TestWorkerContinuesAfterError(t *testing.T) {
 
 func TestWorkerStopsAfterQueueClosed(t *testing.T) {
 	q := NewQueue()
-	q.closed = true
 
 	attemptedJob := 0
 
@@ -95,9 +99,63 @@ func TestWorkerStopsAfterQueueClosed(t *testing.T) {
 		return nil
 	})
 
+	q.Close()
 	w.Start()
 
 	if attemptedJob != 0 {
 		t.Fatalf("Expected attemptedJob to be 0 instead of %d", attemptedJob)
+	}
+}
+
+func TestMultipleWorkers(t *testing.T) {
+	q := NewQueue()
+
+	for i := range 100 {
+		q.Enqueue(Job{ID: i + 1, Name: fmt.Sprintf("Job %d", i+1)})
+	}
+
+	var wg sync.WaitGroup
+	var resultsMu sync.Mutex
+
+	results := make(map[int]int)
+	workerResults := make(map[int]int)
+
+	for workerID := range 5 {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			NewWorker(q, func(j Job) error {
+				resultsMu.Lock()
+				results[j.ID]++
+				workerResults[workerID]++
+				resultsMu.Unlock()
+
+				return nil
+			}).Start()
+		}()
+	}
+
+	q.Close()
+
+	wg.Wait()
+
+	for id := 1; id <= 100; id++ {
+		if results[id] != 1 {
+			t.Fatalf("job %d was processed %d times", id, results[id])
+		}
+	}
+
+	workersUsed := 0
+
+	for _, jobsProcessed := range workerResults {
+		if jobsProcessed > 0 {
+			workersUsed++
+		}
+	}
+
+	if workersUsed < 2 {
+		t.Fatalf("expected jobs to be distributed between multiple workers, but only %d worker processed jobs", workersUsed)
 	}
 }
