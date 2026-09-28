@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestWorkerProcessJob(t *testing.T) {
@@ -123,18 +124,20 @@ func TestMultipleWorkers(t *testing.T) {
 	for workerID := range 5 {
 		wg.Add(1)
 
-		go func() {
+		go func(id int) {
 			defer wg.Done()
 
 			NewWorker(q, func(j Job) error {
+				time.Sleep(1 * time.Millisecond)
+
 				resultsMu.Lock()
 				results[j.ID]++
-				workerResults[workerID]++
+				workerResults[id]++
 				resultsMu.Unlock()
 
 				return nil
 			}).Start()
-		}()
+		}(workerID)
 	}
 
 	q.Close()
