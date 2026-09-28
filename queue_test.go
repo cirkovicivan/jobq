@@ -21,7 +21,7 @@ func TestEnqueue(t *testing.T) {
 	}
 }
 
-func TestDequeue(t *testing.T) {
+func TestDequeueFIFO(t *testing.T) {
 	queue := NewQueue()
 
 	job1 := Job{ID: 1, Name: "first"}
@@ -32,14 +32,16 @@ func TestDequeue(t *testing.T) {
 	queue.Enqueue(job2)
 	queue.Enqueue(job3)
 
-	got, ok := queue.Dequeue()
+	for i := range 3 {
+		job, ok := queue.Dequeue()
 
-	if !ok {
-		t.Fatalf("Expected a job, got empty queue")
-	}
+		if !ok {
+			t.Fatalf("Expected a job, got empty queue")
+		}
 
-	if got.ID != 1 {
-		t.Fatalf("Expected job 1 got %d", got.ID)
+		if job.ID != i+1 {
+			t.Fatalf("Expected job %d got %d", i+1, job.ID)
+		}
 	}
 }
 

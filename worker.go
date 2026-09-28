@@ -27,6 +27,6 @@ func (w *Worker) Start() {
 			continue
 		}
 
-		fmt.Printf("job %d succeeded\n", job.ID)
+		// fmt.Printf("job %d succeeded\n", job.ID)
 	}
 }
