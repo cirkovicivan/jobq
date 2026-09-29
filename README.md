@@ -1,7 +1,7 @@
 # JobQ
 JobQ is a concurrent in-memory job queue written in Go that provides FIFO scheduling, thread-safe access, and configurable worker-based job processing.
 
-[IMAGE]
+![JobQ Architecture](https://i.imgur.com/syl48kh.png)
 
 ## Motivation
 I wanted to understand how job queues work under the hood, so I studied existing queue libraries. Since they handled the difficult parts for me, I built JobQ from scratch in Go to understand the design decisions behind these systems and what it takes to build one from the ground up.
