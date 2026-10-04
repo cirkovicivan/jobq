@@ -160,7 +160,8 @@ func TestMultipleWorkers(t *testing.T) {
 			})
 
 			if err != nil {
-				t.Fatalf("unexpected error creating worker: %v", err)
+				t.Errorf("unexpected error creating worker: %v", err)
+				return
 			}
 
 			w.Start()
