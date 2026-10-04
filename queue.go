@@ -1,27 +1,38 @@
-package main
+package jobq
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
+
+var ErrQueueClosed = errors.New("job queue is closed")
 
 type Queue struct {
-	mu     *sync.Mutex
+	mu     sync.Mutex
 	jobs   []Job
 	cond   *sync.Cond
 	closed bool
 }
 
 func NewQueue() *Queue {
-	mu := sync.Mutex{}
+	q := &Queue{}
+	q.cond = sync.NewCond(&q.mu)
 
-	return &Queue{mu: &mu, jobs: []Job{}, cond: sync.NewCond(&mu)}
+	return q
 }
 
-func (q *Queue) Enqueue(job Job) {
+func (q *Queue) Enqueue(job Job) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	q.jobs = append(q.jobs, job)
+	if q.closed {
+		return ErrQueueClosed
+	}
 
+	q.jobs = append(q.jobs, job)
 	q.cond.Signal()
+
+	return nil
 }
 
 func (q *Queue) Dequeue() (Job, bool) {
@@ -37,6 +48,7 @@ func (q *Queue) Dequeue() (Job, bool) {
 	}
 
 	job := q.jobs[0]
+	q.jobs[0] = Job{}
 	q.jobs = q.jobs[1:]
 
 	return job, true
@@ -48,4 +60,11 @@ func (q *Queue) Close() {
 
 	q.closed = true
 	q.cond.Broadcast()
+}
+
+func (q *Queue) Len() int {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	return len(q.jobs)
 }

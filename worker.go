@@ -1,14 +1,28 @@
-package main
+package jobq
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 type Worker struct {
 	queue   *Queue
 	process func(Job) error
 }
 
-func NewWorker(queue *Queue, process func(Job) error) *Worker {
-	return &Worker{queue: queue, process: process}
+func NewWorker(queue *Queue, process func(Job) error) (*Worker, error) {
+	if queue == nil {
+		return nil, errors.New("queue cannot be nil")
+	}
+
+	if process == nil {
+		return nil, errors.New("process function cannot be nil")
+	}
+
+	return &Worker{
+		queue:   queue,
+		process: process,
+	}, nil
 }
 
 func (w *Worker) Start() {

@@ -1,4 +1,4 @@
-package main
+package jobq
 
 type Job struct {
 	ID   int

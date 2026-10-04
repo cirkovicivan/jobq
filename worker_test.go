@@ -1,4 +1,4 @@
-package main
+package jobq
 
 import (
 	"errors"
@@ -17,10 +17,14 @@ func TestWorkerProcessJob(t *testing.T) {
 
 	processedJobID := 0
 
-	w := NewWorker(q, func(j Job) error {
+	w, err := NewWorker(q, func(j Job) error {
 		processedJobID = j.ID
 		return nil
 	})
+
+	if err != nil {
+		t.Fatalf("unexpected error creating worker: %v", err)
+	}
 
 	q.Close()
 	w.Start()
@@ -43,10 +47,14 @@ func TestWorkerProcessesMultipleJobs(t *testing.T) {
 
 	processedJobIDs := []int{}
 
-	w := NewWorker(q, func(j Job) error {
+	w, err := NewWorker(q, func(j Job) error {
 		processedJobIDs = append(processedJobIDs, j.ID)
 		return nil
 	})
+
+	if err != nil {
+		t.Fatalf("unexpected error creating worker: %v", err)
+	}
 
 	q.Close()
 	w.Start()
@@ -72,13 +80,17 @@ func TestWorkerContinuesAfterError(t *testing.T) {
 
 	attemptedJobIDs := []int{}
 
-	w := NewWorker(q, func(j Job) error {
+	w, err := NewWorker(q, func(j Job) error {
 		attemptedJobIDs = append(attemptedJobIDs, j.ID)
 		if j.ID == 2 {
 			return errors.New("job failed")
 		}
 		return nil
 	})
+
+	if err != nil {
+		t.Fatalf("unexpected error creating worker: %v", err)
+	}
 
 	q.Close()
 	w.Start()
@@ -95,10 +107,14 @@ func TestWorkerStopsAfterQueueClosed(t *testing.T) {
 
 	attemptedJob := 0
 
-	w := NewWorker(q, func(j Job) error {
+	w, err := NewWorker(q, func(j Job) error {
 		attemptedJob = j.ID
 		return nil
 	})
+
+	if err != nil {
+		t.Fatalf("unexpected error creating worker: %v", err)
+	}
 
 	q.Close()
 	w.Start()
@@ -111,7 +127,12 @@ func TestWorkerStopsAfterQueueClosed(t *testing.T) {
 func TestMultipleWorkers(t *testing.T) {
 	q := NewQueue()
 
-	for i := range 100 {
+	const (
+		jobCount    = 1000
+		workerCount = 16
+	)
+
+	for i := range jobCount {
 		q.Enqueue(Job{ID: i + 1, Name: fmt.Sprintf("Job %d", i+1)})
 	}
 
@@ -121,13 +142,13 @@ func TestMultipleWorkers(t *testing.T) {
 	results := make(map[int]int)
 	workerResults := make(map[int]int)
 
-	for workerID := range 5 {
+	for workerID := range workerCount {
 		wg.Add(1)
 
 		go func(id int) {
 			defer wg.Done()
 
-			NewWorker(q, func(j Job) error {
+			w, err := NewWorker(q, func(j Job) error {
 				time.Sleep(1 * time.Millisecond)
 
 				resultsMu.Lock()
@@ -136,7 +157,13 @@ func TestMultipleWorkers(t *testing.T) {
 				resultsMu.Unlock()
 
 				return nil
-			}).Start()
+			})
+
+			if err != nil {
+				t.Fatalf("unexpected error creating worker: %v", err)
+			}
+
+			w.Start()
 		}(workerID)
 	}
 
@@ -144,7 +171,7 @@ func TestMultipleWorkers(t *testing.T) {
 
 	wg.Wait()
 
-	for id := 1; id <= 100; id++ {
+	for id := 1; id <= jobCount; id++ {
 		if results[id] != 1 {
 			t.Fatalf("job %d was processed %d times", id, results[id])
 		}
@@ -160,5 +187,15 @@ func TestMultipleWorkers(t *testing.T) {
 
 	if workersUsed < 2 {
 		t.Fatalf("expected jobs to be distributed between multiple workers, but only %d worker processed jobs", workersUsed)
+	}
+}
+
+func TestNewWorkerRejectsNilHandler(t *testing.T) {
+	q := NewQueue()
+
+	_, err := NewWorker(q, nil)
+
+	if err == nil {
+		t.Fatal("expected error when creating worker with nil handler")
 	}
 }
